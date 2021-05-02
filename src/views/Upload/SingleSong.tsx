@@ -1,148 +1,91 @@
-import React, { useState, useEffect } from "react";
-import styled from "styled-components";
-
+import React, { useState } from "react";
 import icon from "../../assets/statics/conflux-icon.png";
 import { UploadButton } from "../../components/Button";
+import { CardContainer } from "./components";
+import { Title } from "../../components/Text";
 
-const Wrapper = styled.div`
-  display: grid;
-  place-items: ceWnter;
-  padding: 20px;
-  width: calc(100vw - 96px);
-`;
-const Contain = styled.div`
-  background-color: #2a3a5e;
-  border-radius: 16px;
-  padding: 32px;
-`;
+import {
+  Wrapper,
+  Grid,
+  LeftGrid,
+  RigtGrid,
+  FormWrapper,
+  ItemForm,
+  Label,
+  Input,
+  ColumInputs,
+  FileWrapper,
+  SelectFile,
+  PriceWrapper,
+  Price,
+  ConfluxIcon
+} from "./StyledItems";
 
-const Grid = styled.div`
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-bottom: 32px;
-  justify-items: center;
-`;
-
-const LeftGrid = styled.div``;
-const RigtGrid = styled.div``;
-
-const Title = styled.h2`
-  color: #d4d4d4;
-  font-weight: 200;
-  font-size: 48px;
-`;
-
-const FormWrapper = styled.div``;
-
-const ItemForm = styled.div`
-  display: flex;
-  flex-direction: column;
-  margin: 32px 0;
-`;
-const Label = styled.label`
-  color: #d4d4d4;
-  font-weight: bold;
-  margin-bottom: 16px;
-`;
-const Input = styled.input`
-  border-radius: 16px;
-  background-color: #283045;
-  border: none;
-  outline: none;
-  padding: 16px;
-  box-sizing: border-box;
-  color: #d4d4d4;
-  font-size: 16px;
-`;
-
-const ColumInputs = styled.div`
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 32px;
-`;
-
-const FileWrapper = styled.div`
-  background-color: #283045;
-  border-radius: 16px;
-  width: 100%;
-  height: 344px;
-  display: grid;
-  place-items: center;
-`;
-
-const SelectFile = styled.input``;
-
-const PriceWrapper = styled.div`
-  position: relative;
-`;
-
-const Price = styled.input`
-  color: #d4d4d4;
-  width: 100%;
-  height: 92px;
-  background-color: #283045;
-  border: none;
-  outline: none;
-  border-radius: 16px;
-  margin: 32px 0;
-  padding: 8px;
-  box-sizing: border-box;
-  font-size: 48px;
-`;
-
-const ConfluxIcon = styled.img`
-  width: 40px;
-  position: absolute;
-  top: 48px;
-  right: 48px;
-`;
+import { PINATA_JWT } from "../../config/CONSTANTS";
+import { pinFileToIpfs, pinJsonToIpfs } from "../../utils/pinataIpfs";
+import useValidateForm from "../../hooks/useValidateForm";
 
 const SingleSong = () => {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [size, setSize] = useState("2mb");
-  const [duration, setDuration] = useState("2.2s");
+  const [size, setSize] = useState(0);
   const [quantity, setQuantity] = useState(100);
   const [price, setPrice] = useState(0);
-  const [validForm, setValidForm] = useState(false);
+  const [file, setFile] = useState(null);
 
-  useEffect(() => {
-    const checkValidForm =
-      ((name !== "")
-        && (description !== "")
-        && (size !== "")
-        && (duration !== "")
-        && (quantity > 0)
-        && (price > 0));
-    
-    setValidForm(checkValidForm);
-  }, [name, description, size, duration, quantity, price])
+  const [sendButtonText, setSendButtonText] = useState("Upload File");
+  const [isAudioUploaded, setIsAudioUploaded] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
+  const validateForm = useValidateForm(name, description, size, quantity, price);
 
-  const sendAudio = () => {
-    let hash;
-    return hash;
+  const resetForm = () => {
+    setName("");
+    setDescription("");
+    setSize(0);
+    setQuantity(100);
+    setPrice(0);
+    setIsAudioUploaded(false);
+    setFile(null);
+    setSendButtonText("Upload File");
   }
 
-  const sendJsonObject = () => {
-    return
+  const sendTransaction = async () => {
+    try {
+      let customHeader = new Headers();
+      customHeader.append("Authorization", `Bearer ${PINATA_JWT}`);
+
+      if (validateForm) {
+        setIsLoading(true);
+        setSendButtonText("Uploading File...");
+        const audio = await pinFileToIpfs(customHeader, file);
+        customHeader.append('Content-Type', 'application/json');
+
+        setSendButtonText("Uploading Metadata...");
+        const metadata = await pinJsonToIpfs(customHeader, name, description, audio);
+        console.log(`ipfs://${metadata}`);
+
+        setSendButtonText("Music Uploaded");
+        setIsLoading(false);
+        resetForm();
+      }
+    } catch (err) {
+      console.error(err);
+    }
   }
 
-  const createTransaction = () => {
-    return
+  const handleSelectChange = (e: any) => {
+    setFile(e.target.files[0]);
+    setSize(e.target.files[0].size);
+    setIsAudioUploaded(true);
   }
 
-  const sendTransaction = () => {
-    return
-  }
- 
   return (
     <Wrapper>
-      <Contain>
+      <CardContainer>
         <Grid>
           <LeftGrid>
-            <Title>Sound Details</Title>
+            <Title text="Sound Details"/>
             <FormWrapper>
               <ItemForm>
                 <Label>Name</Label>
@@ -160,12 +103,8 @@ const SingleSong = () => {
               </ItemForm>
               <ColumInputs>
                 <ItemForm>
-                  <Label>Duration</Label>
-                  <Input value={duration} disabled />
-                </ItemForm>
-                <ItemForm>
                   <Label>Size</Label>
-                  <Input value={size} disabled />
+                  <Input style={{ color: "#34D399", opacity: 0.6 }} value={size} disabled />
                 </ItemForm>
                 <ItemForm>
                   <Label>Quantity</Label>
@@ -182,7 +121,19 @@ const SingleSong = () => {
           </LeftGrid>
           <RigtGrid>
             <FileWrapper>
-              <SelectFile type="file" />
+              {
+                !isAudioUploaded
+                  ? <SelectFile
+                    type="file"
+                    onChange={handleSelectChange}
+                    accept=".mp3"
+                  />
+                  : <audio controls>
+                    <source src={URL.createObjectURL(file)} />
+                  </audio>
+              }
+
+
             </FileWrapper>
             <PriceWrapper>
               <Price
@@ -196,10 +147,13 @@ const SingleSong = () => {
           </RigtGrid>
         </Grid>
         <UploadButton
-          isActive={validForm}
-          text="Upload File"
+          isLoading={isLoading}
+          center
+          onClick={sendTransaction}
+          isActive={validateForm}
+          text={sendButtonText}
         />
-      </Contain>
+      </CardContainer>
     </Wrapper>
   );
 };
